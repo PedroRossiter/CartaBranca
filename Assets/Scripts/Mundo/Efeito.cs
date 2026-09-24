@@ -9,6 +9,8 @@ namespace CartaBranca.Mundo
         public float duracao = 0.35f;
         public float crescimento = 2.4f;
         public float subida = 1.2f;
+        public Vector2 deriva;          // velocidade extra (cartas do royal flush voando para fora)
+        public float giro;              // graus por segundo
 
         SpriteRenderer _sr;
         float _nasceu;
@@ -33,7 +35,8 @@ namespace CartaBranca.Mundo
             if (t >= 1f) { Destroy(gameObject); return; }
 
             transform.localScale = _escalaInicial * (1f + crescimento * t);
-            transform.position += Vector3.up * subida * Time.deltaTime;
+            transform.position += (Vector3.up * subida + (Vector3)deriva) * Time.deltaTime;
+            if (giro != 0f) transform.Rotate(0f, 0f, giro * Time.deltaTime);
             _sr.color = new Color(_cor.r, _cor.g, _cor.b, _cor.a * (1f - t));
         }
 

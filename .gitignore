@@ -40,3 +40,10 @@ Thumbs.db
 # Lixo que apareceu dentro da pasta do projeto
 /My project/
 /CartaBranca/
+
+# Documentos e arquivos de assistente (fora do repositorio)
+*.md
+.claude/
+.claude*
+CLAUDE*
+

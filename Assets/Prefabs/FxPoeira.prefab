@@ -108,3 +108,5 @@ MonoBehaviour:
   duracao: 0.4
   crescimento: 1.9
   subida: 0.6
+  deriva: {x: 0, y: 0}
+  giro: 0

@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Gerador de pixel art para 'Carta Branca - Ultima Mao'.
 Paleta noir fria + carmim. Tudo desenhado proceduralmente, sem assets externos."""
 import math, os
 from PIL import Image, ImageDraw
 
-OUT = "/home/claude/CartaBranca/Assets/Art"
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Assets", "Art")
 os.makedirs(OUT, exist_ok=True)
 
 # ---------------------------------------------------------------- paleta (14 cores frias + carmim/ouro)

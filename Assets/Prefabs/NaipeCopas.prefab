@@ -198,8 +198,12 @@ MonoBehaviour:
   naipe: 1
   pontos: 18
   velocidadeBase: 4.3
+  fichas: 2
+  machucaAoTocar: 1
   explosaoPrefab: {fileID: 4720743183815501081, guid: a4b000a5548c74c41bb40abfd0310c7f, type: 3}
   poeiraPrefab: {fileID: 8630334954653495730, guid: bb3f832ffa66269489ba2f244381cd20, type: 3}
+  fichaPrefab: {fileID: 4956988533595019760, guid: 1ad173f59efa0184d8703ceadc89df8f, type: 3}
+  fichaOuroPrefab: {fileID: 2830735812136325344, guid: 82c1915393bd7704d97199d126f5eb6f, type: 3}
   amplitude: 1.1
   frequencia: 2.4
   alturaDeVoo: 3.2

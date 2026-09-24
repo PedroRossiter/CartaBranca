@@ -1,10 +1,12 @@
 using UnityEngine;
 using CartaBranca.Nucleo;
+using CartaBranca.Mundo;
 
 namespace CartaBranca.Jogador
 {
-    /// <summary>Carta Branca: quatro acoes (correr, pular, atirar carta, esquivar).
-    /// Herda de Entidade e sobrescreve Morrer() para reiniciar a partida.</summary>
+    /// <summary>Carta Branca: quatro acoes basicas (correr, pular, atirar carta, esquivar).
+    /// A quinta, a acao especial que custa fichas, fica no componente UltimaMao.
+    /// Herda de Entidade e sobrescreve Morrer() para encerrar a mao.</summary>
     [RequireComponent(typeof(Rigidbody2D))]
     public class ControleCartaBranca : Entidade
     {
@@ -14,7 +16,7 @@ namespace CartaBranca.Jogador
         [SerializeField] float atrito = 45f;
 
         [Header("Pulo")]
-        [SerializeField] float forcaPulo = 14.6f;
+        [SerializeField] float forcaPulo = 17.5f;
         [SerializeField] float gravidade = 3.6f;
         [SerializeField] float cortePulo = 0.45f;
         [SerializeField] float tempoCoiote = 0.12f;
@@ -24,10 +26,13 @@ namespace CartaBranca.Jogador
         [SerializeField] float velocidadeEsquiva = 19f;
         [SerializeField] float duracaoEsquiva = 0.16f;
         [SerializeField] float recargaEsquiva = 0.85f;
+        [SerializeField] float intangivelAposEsquiva = 0.3f;   // folga: sair do dash dentro de um naipe nao mata
 
         [Header("Tiro")]
         [SerializeField] float cadencia = 0.2f;
         [SerializeField] float recuo = 2.2f;
+        [SerializeField] int cartasNaMao = 5;                  // rajada maxima
+        [SerializeField] float tempoEmbaralhar = 2f;           // recarga quando a mao acaba
 
         [Header("Referencias (preenchidas pelo construtor)")]
         public Transform mao;
@@ -64,6 +69,18 @@ namespace CartaBranca.Jogador
             get { return Mathf.Clamp01(1f - Mathf.Max(0f, _proximaEsquiva - Time.time) / recargaEsquiva); }
         }
         public int Direcao { get { return _direcao; } }
+
+        // Mao de cartas: 5 tiros, depois 2 s embaralhando (information hiding: so leitura por fora).
+        int _cartas = -1;
+        float _fimEmbaralhar;
+        public int Cartas { get { return Mathf.Max(0, _cartas); } }
+        public int CartasMaximas { get { return cartasNaMao; } }
+        public bool Embaralhando { get { return _cartas == 0; } }
+        public float TempoParaEmbaralhar { get { return Mathf.Max(0f, _fimEmbaralhar - Time.time); } }
+        public float ProgressoEmbaralhar
+        {
+            get { return Embaralhando ? Mathf.Clamp01(1f - TempoParaEmbaralhar / tempoEmbaralhar) : 1f; }
+        }
 
         protected override void Awake()
         {
@@ -107,6 +124,14 @@ namespace CartaBranca.Jogador
             }
 
             _entrada = 0f;
+
+            if (_cartas < 0) _cartas = cartasNaMao;
+            if (Embaralhando && Time.time >= _fimEmbaralhar)
+            {
+                _cartas = cartasNaMao;
+                Sonoplasta.Tocar(Som.Clique, 0.8f);   // mao cheia de novo
+            }
+
             if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow))  _entrada -= 1f;
             if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) _entrada += 1f;
 
@@ -164,6 +189,7 @@ namespace CartaBranca.Jogador
                 _ultimoPedidoPulo = -99f;
                 _ultimoChao = -99f;
                 Soltar(poeiraPrefab, 0.6f);
+                Sonoplasta.Tocar(Som.Pulo, 0.6f);
             }
 
             v.y = Mathf.Max(v.y, -26f);
@@ -174,8 +200,11 @@ namespace CartaBranca.Jogador
 
         void Atirar()
         {
-            if (Time.time < _proximoTiro || cartaPrefab == null) return;
+            if (Time.time < _proximoTiro || cartaPrefab == null || Embaralhando) return;
             _proximoTiro = Time.time + cadencia;
+
+            _cartas--;
+            if (_cartas == 0) _fimEmbaralhar = Time.time + tempoEmbaralhar;   // acabou a mao: embaralha
 
             Vector3 origem = mao != null
                 ? new Vector3(transform.position.x + _direcao * 0.85f, mao.position.y, 0f)
@@ -187,14 +216,17 @@ namespace CartaBranca.Jogador
 
             _rb.linearVelocity = new Vector2(_rb.linearVelocity.x - _direcao * recuo * 0.15f, _rb.linearVelocity.y);
             if (animador != null) animador.SetTrigger("Atirar");
+            Sonoplasta.Tocar(Som.Tiro, 0.5f);
         }
 
         void Esquivar()
         {
             _fimEsquiva = Time.time + duracaoEsquiva;
             _proximaEsquiva = Time.time + recargaEsquiva;
-            TornarInvulneravel(duracaoEsquiva + 0.05f);
+            // intangivel durante o dash e um pouco depois: atravessa os naipes sem se machucar
+            TornarInvulneravel(duracaoEsquiva + intangivelAposEsquiva);
             Soltar(poeiraPrefab, 0.8f);
+            Sonoplasta.Tocar(Som.Esquiva);
         }
 
         void Animar()
@@ -218,7 +250,7 @@ namespace CartaBranca.Jogador
 
         protected override void AoLevarDano(Vector2 origem) { }
 
-        /// <summary>Sobrescrita: a morte da Carta Branca zera a partida inteira.</summary>
+        /// <summary>Sobrescrita: a morte da Carta Branca encerra a mao (camera lenta, zoom e tela de fim).</summary>
         protected override void Morrer()
         {
             if (_morto) return;
@@ -231,8 +263,16 @@ namespace CartaBranca.Jogador
             _rb.linearVelocity = Vector2.zero;
             _rb.simulated = false;
 
-            if (GerenciadorDeJogo.Instancia != null)
-                GerenciadorDeJogo.Instancia.MorteDoJogador();
+            Sonoplasta.Tocar(Som.Morte);
+            CameraSuave.Tremer(1f);
+            CameraSuave.Aproximar(5.6f, 1.3f);
+
+            GerenciadorDeJogo jogo = GerenciadorDeJogo.Instancia;
+            if (jogo != null)
+            {
+                jogo.MorteDoJogador();
+                jogo.CamaraLenta(0.55f, 0.3f);
+            }
         }
 
         /// <summary>Volta ao estado inicial: posicao, vida, fisica e sprite.</summary>
@@ -249,6 +289,7 @@ namespace CartaBranca.Jogador
             TornarInvulneravel(1.2f);
             _fimEsquiva = 0f;
             _proximaEsquiva = 0f;
+            _cartas = cartasNaMao;
         }
 
         void OnDrawGizmosSelected()
